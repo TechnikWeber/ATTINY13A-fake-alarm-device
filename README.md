@@ -174,4 +174,4 @@ In der Praxis (Selbstentladung der Batterie, Temperaturschwankungen): **realisti
 
 ## Lizenz
 
-Public Domain / CC0 — mach was du willst damit.
+[CC0-1.0](LICENSE) — Public Domain, mach was du willst damit.
