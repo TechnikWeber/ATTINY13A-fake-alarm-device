@@ -1,0 +1,5 @@
+# KiCad backups and lock files
+*-backups/
+production/backups/
+~*.lck
+fp-info-cache

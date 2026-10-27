@@ -1,27 +1,42 @@
-<img width="463" height="391" alt="image" src="https://github.com/user-attachments/assets/a8dc4973-b65d-4e64-a395-536100b6417c" />
+# ATtiny13A fake alarm light
 
-<img width="487" height="388" alt="image" src="https://github.com/user-attachments/assets/adc7db20-9d0c-43a8-8bf3-e2cf133b17c3" />
+<p>
+  <img alt="MCU: ATtiny13A" src="https://img.shields.io/badge/MCU-ATtiny13A-blue">
+  <img alt="Power: CR2032" src="https://img.shields.io/badge/power-CR2032%20%C2%B7%20~8%20%C2%B5A-informational">
+  <img alt="PCB: KiCad" src="https://img.shields.io/badge/PCB-KiCad-informational">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green"></a>
+</p>
 
-# Fake-Alarmanlagen-LED mit ATtiny13A
+An extremely low-power gadget: an ATtiny13A flashes an LED briefly at regular intervals
+to fake an armed alarm system. Running from a single CR2032 coin cell, it lasts **at
+least a year**.
 
-Ein extrem stromsparendes Projekt, bei dem ein ATtiny13A eine LED in regelmäßigen Abständen kurz aufblitzen lässt, um eine aktive Alarmanlage zu simulieren. Versorgt aus einer einzelnen CR2032-Knopfzelle hält die Schaltung **mindestens ein Jahr** durch.
+![The round "Fake-Alarm-Device" PCB, rendered in KiCad](docs/board-3d.png)
 
-## Funktionsweise
+<img width="463" alt="Photo" src="https://github.com/user-attachments/assets/a8dc4973-b65d-4e64-a395-536100b6417c" /> <img width="487" alt="Photo" src="https://github.com/user-attachments/assets/adc7db20-9d0c-43a8-8bf3-e2cf133b17c3" />
 
-Der Mikrocontroller schläft die meiste Zeit im Power-Down-Modus (~5 µA) und wird vom Watchdog-Timer alle ~1 Sekunde geweckt. Nach der eingestellten Anzahl Wakeups (z.B. 5 für 5 Sekunden) wird die LED kurz angeschaltet (z.B. 3 ms), danach geht der Chip wieder schlafen.
+## How it works
+
+The microcontroller spends almost all its time in power-down sleep (~4–5 µA) and is woken
+by the watchdog timer: 4 s, then 1 s — 5 s in total. Then it switches the LED on for
+3 ms and goes back to sleep. ADC, analog comparator, timer and the digital input buffers
+are switched off; the CPU runs on the default fuses (9.6 MHz / 8 = 1.2 MHz).
 
 ## Hardware
 
-| Bauteil | Wert / Typ |
+| Part | Value / type |
 |---|---|
-| MCU | ATtiny13A (DIP-8 oder SOIC-8) |
-| Stromversorgung | CR2032 (3 V) |
-| Stützkondensator | 100 nF parallel zu VCC |
-| LED | beliebige Low-Current-LED |
-| Vorwiderstand LED | 3,3 kΩ |
-| Reset-Pullup | 1 MΩ gegen VCC (statt 100 kΩ — spart ~25 µA!) |
+| MCU | ATtiny13A (DIP-8 or SOIC-8) |
+| Power | CR2032 (3 V) |
+| Bypass capacitor | 100 nF across VCC |
+| LED | any low-current LED |
+| LED series resistor | 3.3 kΩ |
+| Reset pull-up | 1 MΩ to VCC (instead of 100 kΩ — saves ~25 µA!) |
 
-### Schaltung
+The KiCad project (schematic, PCB and production files) is in
+[`ATTINY13A_AlarmDevice/`](ATTINY13A_AlarmDevice).
+
+### Circuit
 
 ```
                   CR2032 (3V)
@@ -42,13 +57,13 @@ Der Mikrocontroller schläft die meiste Zeit im Power-Down-Modus (~5 µA) und wi
                     GND
 
 
-   VCC ----[3,3 kΩ]----[LED Anode]
-                       [LED Kathode] ---- PB0 (Pin 5, ATtiny13A)
+   VCC ----[3.3 kΩ]----[LED anode]
+                       [LED cathode] ---- PB0 (pin 5, ATtiny13A)
 ```
 
-**Hinweis:** Die LED ist low-active, d.h. sie leuchtet wenn PB0 auf LOW gezogen wird. Das spart minimal Strom gegenüber dem Anschluss gegen GND.
+**Note:** the LED is active low, i.e. it lights when PB0 is pulled LOW.
 
-### Pinbelegung ATtiny13A (DIP-8)
+### ATtiny13A pinout (DIP-8)
 
 ```
          ┌──┬──┐
@@ -59,119 +74,113 @@ Der Mikrocontroller schläft die meiste Zeit im Power-Down-Modus (~5 µA) und wi
          └─────┘
 ```
 
-## Versionen
+## Firmware
 
-Im Repo liegen mehrere vorkompilierte `.hex`-Dateien:
+In [`Firmware/`](Firmware):
 
-| Datei | Blitzdauer | Intervall |
-|---|---|---|
-| `fake_alarm_3s_3ms.hex` | 3 ms | 3 s |
-| `fake_alarm_3s_5ms.hex` | 5 ms | 3 s |
-| `fake_alarm_5s_3ms.hex` | 3 ms | 5 s |
-
-Empfohlen: **`fake_alarm_3ms_5s.hex`** — guter Kompromiss aus Sichtbarkeit, Stromverbrauch und realistischem Verhalten.
-
-## Software-Voraussetzungen (Windows)
-
-### 1. avrdude installieren
-- Download: https://github.com/avrdudes/avrdude/releases
-- ZIP entpacken nach z.B. `C:\avrdude\`
-- Optional: Verzeichnis zur PATH-Umgebungsvariable hinzufügen
-
-### 2. Treiber für Diamex ISP-Prog-NG (USBasp-kompatibel)
-Falls Windows den Programmer nicht erkennt:
-- **Zadig** herunterladen: https://zadig.akeo.ie/
-- Diamex anstecken, Zadig starten
-- *Options → List All Devices*
-- "USBasp" auswählen
-- Treiber **libusbK** (oder libusb-win32) wählen → *Install Driver*
-
-### 3. Optional: AVR-Toolchain (nur falls selbst kompiliert werden soll)
-- Zak Kemble's AVR-GCC Builds: https://blog.zakkemble.net/avr-gcc-builds/
-
-## Verkabelung Programmer ↔ ATtiny13A
-
-| Diamex ISP-Prog-NG (6-pol) | ATtiny13A Pin |
+| File | What it is |
 |---|---|
-| MISO | PB1 (Pin 6) |
-| VCC | VCC (Pin 8) |
-| SCK | PB2 (Pin 7) |
-| MOSI | PB0 (Pin 5) |
-| RESET | RESET (Pin 1) |
-| GND | GND (Pin 4) |
+| `raw_code.c` / `fake_alarm_5s_3ms_default.hex` | 3 ms flash every 5 s |
+| `raw_code_V2.c` / `fake_alarm_5s_3ms_default_V2.hex` | Same, optimised: unused pins with pull-ups (no floating inputs), BOD off during sleep — **recommended** |
 
-> ⚠️ **Wichtig:** Während des Programmierens **entweder** die CR2032 entfernen **oder** die Target-Power des Programmers deaktivieren — niemals beides gleichzeitig versorgen!
+## Software requirements (Windows)
 
-## Flashen
+1. **avrdude:** download from <https://github.com/avrdudes/avrdude/releases>, unpack e.g. to
+   `C:\avrdude\`, optionally add it to the PATH.
+2. **Driver for the Diamex ISP-Prog-NG (USBasp-compatible)**, if Windows does not recognise
+   the programmer: start **Zadig** (<https://zadig.akeo.ie/>) with the programmer plugged in,
+   *Options → List All Devices*, select "USBasp", choose **libusbK** (or libusb-win32) →
+   *Install Driver*.
+3. Optional, only to compile yourself: an AVR-GCC toolchain, e.g. Zak Kemble's builds
+   (<https://blog.zakkemble.net/avr-gcc-builds/>).
 
-Eingabeaufforderung im Verzeichnis mit der `.hex`-Datei öffnen:
+On Linux, `avrdude` and `avr-gcc` come from the package manager.
 
-```cmd
-avrdude -c usbasp -p t13 -U flash:w:fake_alarm_3ms_5s.hex:i
+## Wiring programmer ↔ ATtiny13A
+
+| Diamex ISP-Prog-NG (6-pin) | ATtiny13A pin |
+|---|---|
+| MISO | PB1 (pin 6) |
+| VCC | VCC (pin 8) |
+| SCK | PB2 (pin 7) |
+| MOSI | PB0 (pin 5) |
+| RESET | RESET (pin 1) |
+| GND | GND (pin 4) |
+
+> [!WARNING]
+> While programming, **either** remove the CR2032 **or** switch off the programmer's target
+> power — never power from both at the same time!
+
+## Flashing
+
+```bash
+avrdude -c usbasp -p t13 -U flash:w:Firmware/fake_alarm_5s_3ms_default_V2.hex:i
 ```
 
-## Fuses setzen (nur nötig wenn sie abweichen, standardmäßig sollte es schon passen!)
+## Fuses
 
-```cmd
-avrdude -c usbasp -p t13 -U lfuse:w:0x6B:m -U hfuse:w:0xFF:m
+The firmware runs on the **factory default fuses** — normally nothing needs to be set.
+Only if a chip was configured differently:
+
+```bash
+avrdude -c usbasp -p t13 -U lfuse:w:0x6A:m -U hfuse:w:0xFF:m
 ```
 
-| Fuse | Wert | Bedeutung |
+| Fuse | Value | Meaning |
 |---|---|---|
-| `lfuse` | `0x6A` | Int. RC 9.6 MHz, CKDIV8 aktiv → 1,2 MHz Takt |
-| `hfuse` | `0xFF` | BOD aus, RSTDISBL aus, SPIEN aktiv |
+| `lfuse` | `0x6A` | internal RC 9.6 MHz, CKDIV8 on → 1.2 MHz clock |
+| `hfuse` | `0xFF` | BOD off, RSTDISBL off, SPIEN on |
 
-> **Wichtig:** BOD muss aus sein — sonst zieht der Chip allein dafür ~20 µA und die Batterie hält keine drei Monate.
+> [!IMPORTANT]
+> BOD must be off — otherwise the chip draws ~20 µA for it alone and the battery does not
+> last three months.
 
-Fuses auslesen zur Kontrolle:
+Read the fuses back to check (expected: `0x6a` and `0xff`):
 
-```cmd
+```bash
 avrdude -c usbasp -p t13 -U lfuse:r:-:h -U hfuse:r:-:h
 ```
 
-Erwartete Ausgabe: `0x6b` und `0xff`.
+## Compile it yourself
 
-## Selbst kompilieren
-
-```cmd
-avr-gcc -mmcu=attiny13a -DF_CPU=1200000UL -Os -Wall -o fake_alarm.elf fake_alarm_3ms_5s.c
+```bash
+avr-gcc -mmcu=attiny13a -DF_CPU=1200000UL -Os -Wall -o fake_alarm.elf Firmware/raw_code_V2.c
 avr-objcopy -O ihex -R .eeprom fake_alarm.elf fake_alarm.hex
 avr-size --format=avr --mcu=attiny13a fake_alarm.elf
 ```
 
-### Anpassungen im Quellcode
+**Adjust it:** the flash length is the value in `_delay_ms(3);` (1–10 ms makes sense); the
+interval comes from the two watchdog sleeps `sleep_wdt(WDT_4S); sleep_wdt(WDT_1S);` — the
+watchdog offers steps from 16 ms to 8 s.
 
-- **Blitzdauer ändern:** Wert in `_delay_ms(3);` anpassen (1–10 ms sind sinnvoll)
-- **Intervall ändern:** Vergleichswert in `if (++counter >= 5)` anpassen (entspricht Sekunden)
+## Power budget
 
-## Strombudget
-
-| Zustand | Stromverbrauch |
+| State | Current |
 |---|---|
-| Power-Down + WDT (Sleep) | ~5 µA |
-| LED-Blitz (3 ms alle 5 s) | ~0,2 µA Mittelwert |
-| Reset-Pullup 1 MΩ | ~3 µA |
-| **Gesamt (Mittelwert)** | **~8 µA** |
+| Power-down + WDT (sleep) | ~5 µA |
+| LED flash (3 ms every 5 s) | ~0.2 µA average |
+| 1 MΩ reset pull-up | ~3 µA |
+| **Total (average)** | **~8 µA** |
 
-Bei einer CR2032 mit ~220 mAh nutzbarer Kapazität:
+With a CR2032 of ~220 mAh usable capacity:
 
 ```
-220 mAh / 0,008 mA ≈ 27.500 h ≈ 3,1 Jahre (theoretisch)
+220 mAh / 0.008 mA ≈ 27,500 h ≈ 3.1 years (theoretical)
 ```
 
-In der Praxis (Selbstentladung der Batterie, Temperaturschwankungen): **realistisch 1,5–2 Jahre**.
+In practice (battery self-discharge, temperature swings): **realistically 1.5–2 years**.
 
 ## Troubleshooting
 
-| Problem | Lösung |
+| Problem | Fix |
 |---|---|
-| `could not find USB device` | Zadig-Treiber neu installieren, anderen USB-Port testen |
-| `target doesn't answer` | Verkabelung prüfen, Taktrate reduzieren: Option `-B 10` ergänzen |
-| `signature mismatch` | Falscher Chip-Typ, schlechter Kontakt, oder Chip defekt |
-| LED blitzt nicht nach Einsetzen der Batterie | Fuses prüfen — vor allem CKDIV8-Bit (lfuse Bit 7 = 0) |
-| Batterie hält nur Wochen statt Monate | BOD aktiviert? Pull-up zu niederohmig? Sleep-Strom mit Multimeter messen |
-| Blitz zu schwach sichtbar | Längere Blitzdauer wählen (5 ms statt 3 ms) |
+| `could not find USB device` | Reinstall the Zadig driver, try another USB port |
+| `target doesn't answer` | Check the wiring, slow down the programming clock: add `-B 10` |
+| `signature mismatch` | Wrong chip type, bad contact, or a defective chip |
+| LED does not flash after inserting the battery | Check the fuses — above all the CKDIV8 bit (lfuse bit 7 = 0) |
+| Battery lasts weeks instead of months | BOD enabled? Pull-up too low? Measure the sleep current with a multimeter |
+| Flash hard to see | Choose a longer flash (5 ms instead of 3 ms) |
 
-## Lizenz
+## License
 
-[CC0-1.0](LICENSE) — Public Domain, mach was du willst damit.
+[MIT](LICENSE).
