@@ -83,7 +83,9 @@ In [`Firmware/`](Firmware):
 | `raw_code.c` / `fake_alarm_5s_3ms_default.hex` | 3 ms flash every 5 s |
 | `raw_code_V2.c` / `fake_alarm_5s_3ms_default_V2.hex` | Same, optimised: unused pins with pull-ups (no floating inputs), BOD off during sleep — **recommended** |
 
-## Software requirements (Windows)
+## Software requirements
+
+### Windows
 
 1. **avrdude:** download from <https://github.com/avrdudes/avrdude/releases>, unpack e.g. to
    `C:\avrdude\`, optionally add it to the PATH.
@@ -94,7 +96,24 @@ In [`Firmware/`](Firmware):
 3. Optional, only to compile yourself: an AVR-GCC toolchain, e.g. Zak Kemble's builds
    (<https://blog.zakkemble.net/avr-gcc-builds/>).
 
-On Linux, `avrdude` and `avr-gcc` come from the package manager.
+### Linux
+
+```bash
+sudo apt install avrdude gcc-avr avr-libc       # Debian, Ubuntu, Raspberry Pi OS
+sudo dnf install avrdude avr-gcc avr-libc       # Fedora
+```
+
+`gcc-avr`/`avr-gcc` and `avr-libc` are only needed to compile yourself. No driver is
+needed, but without a udev rule only root may talk to the programmer. Check its USB ID
+with `lsusb` (USBasp-compatible programmers usually show `16c0:05dc`), then:
+
+```bash
+echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="16c0", ATTR{idProduct}=="05dc", TAG+="uaccess"' \
+  | sudo tee /etc/udev/rules.d/60-usbasp.rules
+sudo udevadm control --reload-rules
+```
+
+Unplug the programmer and plug it back in.
 
 ## Wiring programmer ↔ ATtiny13A
 
@@ -174,7 +193,7 @@ In practice (battery self-discharge, temperature swings): **realistically 1.5–
 
 | Problem | Fix |
 |---|---|
-| `could not find USB device` | Reinstall the Zadig driver, try another USB port |
+| `could not find USB device` | Windows: reinstall the Zadig driver. Linux: check the udev rule (or try with `sudo`). Try another USB port |
 | `target doesn't answer` | Check the wiring, slow down the programming clock: add `-B 10` |
 | `signature mismatch` | Wrong chip type, bad contact, or a defective chip |
 | LED does not flash after inserting the battery | Check the fuses — above all the CKDIV8 bit (lfuse bit 7 = 0) |
