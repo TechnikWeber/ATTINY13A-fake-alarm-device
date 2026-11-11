@@ -3,3 +3,8 @@
 production/backups/
 ~*.lck
 fp-info-cache
+
+# Firmware build output (the .hex files are committed)
+Firmware/*.elf
+# Local copies for testing the web flasher; CI copies them into the site
+web/*.hex

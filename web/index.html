@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAD Web-Flasher</title>
+<meta name="description" content="Blinkmuster einstellen und die ATtiny13A-Fake-Alarm-Leuchte direkt aus dem Browser flashen – USBasp, USBtinyISP, AVRISP mkII, STK500v2, Arduino as ISP.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23111'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23ff3b30'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="wrap">
+  <div class="brand">
+    <div class="dot" aria-hidden="true"></div>
+    <div>
+      <h1>Fake-Alarm-Blinker <span>Web-Flasher</span></h1>
+      <p class="lead">Blinkmuster einstellen, <code>.hex</code> speichern oder den ATtiny13A direkt aus dem Browser flashen.
+        <a href="https://github.com/TechnikWeber/ATTINY13A-fake-alarm-device">Projekt auf GitHub</a></p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- 1: pattern -->
+<section class="card" id="pattern">
+  <h2><span class="num">1</span> Blinkmuster</h2>
+
+  <div class="fw-select" role="radiogroup" aria-label="Firmware">
+    <label><input type="radio" name="fw" value="v3" checked> <b>Einstellbar (V3)</b> <small>empfohlen</small></label>
+    <label><input type="radio" name="fw" value="v2"> Original V2 <small>fest 5 s / 3 ms</small></label>
+    <label><input type="radio" name="fw" value="v1"> Original V1 <small>fest 5 s / 3 ms</small></label>
+  </div>
+
+  <div id="cfgArea">
+    <div class="presets" aria-label="Vorlagen">
+      <button type="button" data-preset="orig">Original · 5 s / 3 ms</button>
+      <button type="button" data-preset="alarm">Alarmanlage · 2 s / 5 ms</button>
+      <button type="button" data-preset="double">Doppelblitz · 4 s</button>
+      <button type="button" data-preset="saver">Sparsam · 10 s / 2 ms</button>
+      <button type="button" data-preset="camera">Kamera-Attrappe · 1 s / 20 ms</button>
+    </div>
+
+    <div class="grid">
+      <label class="field">
+        <span>Leuchtdauer pro Blitz</span>
+        <div class="in"><input id="onTime" type="number" min="0.1" max="100" step="0.1" value="3"><em>ms</em></div>
+        <small id="onTimeHint">0,1 – 100 ms. Länger = besser sichtbar, aber mehr Strom.</small>
+      </label>
+      <label class="field">
+        <span>Pause bis zum nächsten Blinken</span>
+        <div class="in"><input id="interval" type="number" min="0.016" max="1048" step="0.016" value="5"><em>s</em></div>
+        <small id="intervalHint"></small>
+      </label>
+      <label class="field">
+        <span>Blitze pro Blinken</span>
+        <div class="in"><input id="flashes" type="number" min="1" max="9" step="1" value="1"><em>×</em></div>
+        <small>1 = Einzelblitz, 2 = Doppelblitz …</small>
+      </label>
+      <label class="field" id="gapField">
+        <span>Abstand zwischen den Blitzen</span>
+        <div class="in"><input id="gap" type="number" min="16" max="8000" step="16" value="256"><em>ms</em></div>
+        <small id="gapHint"></small>
+      </label>
+      <label class="field">
+        <span>Start-Blinken nach Batteriewechsel</span>
+        <div class="in"><input id="boot" type="number" min="0" max="9" step="1" value="0"><em>×</em></div>
+        <small>Kurze Blitze als „Batterie ok“-Zeichen, 0 = aus.</small>
+      </label>
+    </div>
+
+    <details class="adv">
+      <summary>Erweitert: LED-Pin, Polarität, Stromschätzung</summary>
+      <div class="grid">
+        <label class="field">
+          <span>LED-Pin</span>
+          <div class="in"><select id="ledPin">
+            <option value="0" selected>PB0 (Pin 5) – Platine</option>
+            <option value="1">PB1 (Pin 6)</option>
+            <option value="2">PB2 (Pin 7)</option>
+            <option value="3">PB3 (Pin 2)</option>
+            <option value="4">PB4 (Pin 3)</option>
+          </select></div>
+          <small>PB0–PB2 sind auch ISP-Leitungen; die LED blinkt beim Flashen evtl. mit.</small>
+        </label>
+        <label class="field">
+          <span>LED schaltet bei</span>
+          <div class="in"><select id="polarity">
+            <option value="low" selected>LOW (Anode an VCC) – Platine</option>
+            <option value="high">HIGH (Kathode an GND)</option>
+          </select></div>
+        </label>
+        <label class="field">
+          <span>LED-Vorwiderstand</span>
+          <div class="in"><input id="resistor" type="number" min="100" max="100000" step="100" value="3300"><em>Ω</em></div>
+          <small>Nur für die Laufzeitschätzung (LED ≈ 1,9 V).</small>
+        </label>
+        <label class="field">
+          <span>Ruhestrom</span>
+          <div class="in"><input id="baseCurrent" type="number" min="1" max="100" step="0.5" value="8"><em>µA</em></div>
+          <small>Schlaf + Watchdog + Reset-Pull-up, laut README ≈ 8 µA.</small>
+        </label>
+      </div>
+    </details>
+  </div>
+
+  <div class="preview">
+    <div class="led-box">
+      <div class="led" id="led" aria-hidden="true"></div>
+      <small>Vorschau</small>
+    </div>
+    <div class="preview-main">
+      <svg id="timeline" viewBox="0 0 600 70" preserveAspectRatio="none" role="img" aria-label="Zeitverlauf eines Zyklus"></svg>
+      <div class="stats" id="stats"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2: save -->
+<section class="card" id="save">
+  <h2><span class="num">2</span> Firmware speichern <small>(geht immer, auch ohne Programmer im Browser)</small></h2>
+  <div class="row">
+    <button type="button" class="btn" id="downloadBtn">.hex herunterladen</button>
+    <span class="filename" id="fileName"></span>
+  </div>
+  <p class="muted">Am PC flashen mit avrdude (USBasp; andere Programmer: <code>-c usbtiny</code>, <code>-c avrispmkII</code>, <code>-c stk500v2 -P /dev/ttyACM0</code>, <code>-c arduino -P /dev/ttyACM0 -b 19200</code>):</p>
+  <div class="cmd"><code id="avrdudeCmd"></code><button type="button" class="copy" data-copy="avrdudeCmd">Kopieren</button></div>
+</section>
+
+<!-- 3: flash -->
+<section class="card" id="flash">
+  <h2><span class="num">3</span> Direkt flashen</h2>
+  <div class="notice" id="browserNotice" hidden></div>
+
+  <div class="prog-list" role="radiogroup" aria-label="Programmer">
+    <label class="prog"><input type="radio" name="prog" value="usbasp" checked>
+      <span><b>USBasp</b> <i class="tag ok">empfohlen</i><br><small>Diamex ISP-Prog-NG, USBasp-Klone · WebUSB</small></span></label>
+    <label class="prog"><input type="radio" name="prog" value="usbtiny">
+      <span><b>USBtinyISP</b><br><small>Adafruit USBtinyISP, SparkFun Pocket AVR · WebUSB</small></span></label>
+    <label class="prog"><input type="radio" name="prog" value="mkii">
+      <span><b>AVRISP mkII</b> <i class="tag">experimentell</i><br><small>Original und LUFA-Klone · WebUSB</small></span></label>
+    <label class="prog"><input type="radio" name="prog" value="stk500v2">
+      <span><b>STK500v2 seriell</b><br><small>Diamex im STK500-Modus, AVRISP-v2-Klone · Web Serial</small></span></label>
+    <label class="prog"><input type="radio" name="prog" value="arduino">
+      <span><b>Arduino as ISP</b><br><small>Arduino mit ArduinoISP-Sketch · Web Serial, 19200 Baud</small></span></label>
+  </div>
+
+  <div class="grid conn">
+    <label class="field" id="usbIdField">
+      <span>USB-ID (VID:PID)</span>
+      <div class="in"><input id="usbId" type="text" value="16c0:05dc" spellcheck="false" autocomplete="off"></div>
+      <small>Voreinstellung passt zum gewählten Programmer; nur ändern, wenn deiner anders meldet (<code>lsusb</code>).</small>
+    </label>
+    <label class="field" id="sckField">
+      <span>ISP-Takt</span>
+      <div class="in"><select id="sck">
+        <option value="normal" selected>normal (~60–100 kHz)</option>
+        <option value="slow">langsam (~16 kHz)</option>
+        <option value="slowest">sehr langsam (~2 kHz)</option>
+      </select></div>
+      <small>Bei „Chip antwortet nicht“ langsamer stellen.</small>
+    </label>
+    <label class="field" id="baudField" hidden>
+      <span>Baudrate</span>
+      <div class="in"><input id="baud" type="number" value="115200" min="1200" step="1"></div>
+    </label>
+  </div>
+
+  <div class="row">
+    <button type="button" class="btn ghost" id="searchBtn">Programmer suchen</button>
+    <label class="check"><input type="checkbox" id="showAll"> alle USB-Geräte anzeigen</label>
+  </div>
+  <div class="device" id="deviceInfo">Noch kein Programmer ausgewählt.</div>
+
+  <div class="warn">Beim Flashen <b>entweder</b> die CR2032 herausnehmen <b>oder</b> die Zielspannung des Programmers abschalten – nie beides gleichzeitig.</div>
+
+  <div class="row actions">
+    <button type="button" class="btn" id="flashBtn">Flashen</button>
+    <button type="button" class="btn ghost" id="testBtn">Verbindung testen</button>
+    <button type="button" class="btn ghost" id="readBtn">Chip auslesen (.hex)</button>
+  </div>
+  <div class="row">
+    <label class="check"><input type="checkbox" id="setFuses"> danach Fuses auf Werkseinstellung setzen (<code>lfuse 0x6A</code>, <code>hfuse 0xFF</code>, BOD aus)</label>
+  </div>
+
+  <div class="progress" aria-hidden="true"><div id="bar"></div></div>
+  <pre class="log" id="log" aria-live="polite"></pre>
+</section>
+
+<section class="card help">
+  <h2>Hilfe</h2>
+  <details>
+    <summary>Browser</summary>
+    <p>WebUSB und Web Serial gibt es nur in Chrome, Edge, Opera und anderen Chromium-Browsern am Desktop (nicht Firefox, nicht Safari). Die Seite muss über <code>https://</code> laufen – auf GitHub Pages ist das so.</p>
+  </details>
+  <details>
+    <summary>Linux: Zugriffsrechte</summary>
+    <p>Ohne udev-Regel darf nur root auf den Programmer zugreifen. Einmal einrichten, danach den Programmer neu einstecken:</p>
+    <div class="cmd"><code id="udevCmd">sudo tee /etc/udev/rules.d/60-avr-programmers.rules &lt;&lt;'EOF'
+SUBSYSTEM=="usb", ATTR{idVendor}=="16c0", ATTR{idProduct}=="05dc", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="c7b4", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="1781", ATTR{idProduct}=="0c9f", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="03eb", ATTR{idProduct}=="2104", TAG+="uaccess"
+EOF
+sudo udevadm control --reload-rules</code><button type="button" class="copy" data-copy="udevCmd">Kopieren</button></div>
+    <p>Serielle Programmer (STK500v2, Arduino) brauchen die Gruppe <code>dialout</code>: <code>sudo usermod -aG dialout $USER</code>, danach neu anmelden.</p>
+  </details>
+  <details>
+    <summary>Windows: Treiber</summary>
+    <p>WebUSB braucht den <b>WinUSB</b>-Treiber. Mit <a href="https://zadig.akeo.ie/">Zadig</a>: Programmer einstecken, <i>Options → List All Devices</i>, Gerät wählen, <b>WinUSB</b> → <i>Install/Replace Driver</i>. Falls avrdude danach meckert, mit Zadig wieder auf libusbK/libusb-win32 umstellen. Serielle Programmer brauchen keinen Extra-Treiber.</p>
+  </details>
+  <details>
+    <summary>Es klappt nicht</summary>
+    <ul>
+      <li><b>Kein Gerät im Auswahldialog:</b> USB-ID prüfen (<code>lsusb</code>), „alle USB-Geräte anzeigen“ probieren, unter Linux die udev-Regel, unter Windows WinUSB.</li>
+      <li><b>„Chip antwortet nicht“:</b> Verkabelung (MISO/MOSI/SCK/RESET), Stromversorgung, ISP-Takt langsamer.</li>
+      <li><b>Falsche Signatur:</b> kein ATtiny13/13A, Wackelkontakt oder Chip defekt.</li>
+      <li><b>Diamex ISP-Prog-NG:</b> meldet er sich nicht als USBasp, läuft er vermutlich im STK500-Modus → „STK500v2 seriell“ wählen.</li>
+      <li><b>Geht alles nicht:</b> in Schritt 2 die <code>.hex</code> speichern und am PC mit avrdude flashen – die Einstellungen stecken in der Datei.</li>
+    </ul>
+  </details>
+</section>
+</main>
+
+<footer class="wrap muted">
+  MIT-Lizenz · <a href="https://github.com/TechnikWeber/ATTINY13A-fake-alarm-device">TechnikWeber/ATTINY13A-fake-alarm-device</a> · Alles läuft lokal im Browser, nichts wird hochgeladen.
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

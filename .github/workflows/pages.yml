@@ -1,0 +1,64 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install AVR toolchain
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gcc-avr avr-libc binutils-avr
+
+      - name: Build configurable firmware
+        working-directory: Firmware
+        run: |
+          make -B
+          make size
+
+      - name: Check the web flasher finds the settings block
+        run: |
+          cat > /tmp/check.mjs <<'JS'
+          import fs from "node:fs";
+          const { parseHex, findConfig, readConfig } = await import(process.cwd() + "/web/fad.js");
+          const { image, used } = parseHex(fs.readFileSync("Firmware/fad_configurable.hex", "utf8"));
+          const off = findConfig(image);
+          if (off < 0) throw new Error("settings block FADCFG not found");
+          console.log(`${used} bytes, settings at 0x${off.toString(16)}:`, readConfig(image, off));
+          JS
+          node /tmp/check.mjs
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp web/index.html web/style.css web/app.js web/fad.js _site/
+          cp Firmware/fad_configurable.hex Firmware/fake_alarm_5s_3ms_default.hex Firmware/fake_alarm_5s_3ms_default_V2.hex _site/
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,10 +1,19 @@
 # ATtiny13A fake alarm light
 
 <p>
+  <a href="https://github.com/TechnikWeber/ATTINY13A-fake-alarm-device/actions/workflows/pages.yml"><img alt="build" src="https://img.shields.io/github/actions/workflow/status/TechnikWeber/ATTINY13A-fake-alarm-device/pages.yml?branch=main&label=build"></a>
   <img alt="MCU: ATtiny13A" src="https://img.shields.io/badge/MCU-ATtiny13A-blue">
   <img alt="Power: CR2032" src="https://img.shields.io/badge/power-CR2032%20%C2%B7%20~8%20%C2%B5A-informational">
   <img alt="PCB: KiCad" src="https://img.shields.io/badge/PCB-KiCad-informational">
+  <img alt="Web flasher UI: Deutsch" src="https://img.shields.io/badge/web%20flasher-Deutsch-informational">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green"></a>
+</p>
+
+<p>
+  <a href="https://technikweber.github.io/ATTINY13A-fake-alarm-device/"><b>Configure and flash from the browser</b></a> &nbsp;·&nbsp;
+  <a href="#firmware"><b>Firmware</b></a> &nbsp;·&nbsp;
+  <a href="#flashing"><b>Flashing with avrdude</b></a> &nbsp;·&nbsp;
+  <a href="ATTINY13A_AlarmDevice"><b>KiCad project</b></a>
 </p>
 
 An extremely low-power gadget: an ATtiny13A flashes an LED briefly at regular intervals
@@ -74,6 +83,28 @@ The KiCad project (schematic, PCB and production files) is in
          └─────┘
 ```
 
+## Web flasher
+
+The [web flasher](https://technikweber.github.io/ATTINY13A-fake-alarm-device/) sets the
+blink pattern without a compiler and flashes the chip straight from the browser:
+
+- **Pattern:** flash length (0.1–100 ms), pause (16 ms steps up to ~17 min), flashes per
+  burst (double flash …), gap inside a burst, "battery OK" flashes at power-up, LED pin
+  and polarity. A live preview and a battery-life estimate update as you type.
+- **Save:** download the configured `.hex` and flash it with avrdude — this always works,
+  in any browser.
+- **Flash:** USBasp (incl. Diamex ISP-Prog-NG) is the recommended path; USBtinyISP and
+  AVRISP mkII (experimental) also go over WebUSB, STK500v2 programmers and Arduino as ISP
+  over Web Serial. The USB ID is preset per programmer and can be changed; "Programmer
+  suchen" lists matching devices and switches the driver when it recognises one. The
+  flasher checks the signature, erases, writes, verifies, and can reset the fuses to the
+  factory values.
+
+WebUSB and Web Serial need Chrome, Edge or another Chromium browser on the desktop. On
+Windows the programmer needs the **WinUSB** driver for WebUSB (Zadig, see below); on
+Linux the udev rule below. Nothing has been tested on real hardware with the browser yet —
+if it does not work for you, save the `.hex` and flash it with avrdude.
+
 ## Firmware
 
 In [`Firmware/`](Firmware):
@@ -81,7 +112,12 @@ In [`Firmware/`](Firmware):
 | File | What it is |
 |---|---|
 | `raw_code.c` / `fake_alarm_5s_3ms_default.hex` | 3 ms flash every 5 s |
-| `raw_code_V2.c` / `fake_alarm_5s_3ms_default_V2.hex` | Same, optimised: unused pins with pull-ups (no floating inputs), BOD off during sleep — **recommended** |
+| `raw_code_V2.c` / `fake_alarm_5s_3ms_default_V2.hex` | Same, optimised: unused pins with pull-ups (no floating inputs), BOD off during sleep |
+| `fad_configurable.c` / `fad_configurable.hex` | V3: V2 plus a settings block in flash that the web flasher patches; defaults are 3 ms every ~5 s — **recommended** |
+
+V3 also sets the clock prescaler to 1.2 MHz in software, so the timing is right even if
+the CKDIV8 fuse was changed. Pauses come from the watchdog oscillator, which is only
+accurate to about ±10 %. Build it with `make` in `Firmware/`.
 
 ## Software requirements
 
@@ -92,7 +128,8 @@ In [`Firmware/`](Firmware):
 2. **Driver for the Diamex ISP-Prog-NG (USBasp-compatible)**, if Windows does not recognise
    the programmer: start **Zadig** (<https://zadig.akeo.ie/>) with the programmer plugged in,
    *Options → List All Devices*, select "USBasp", choose **libusbK** (or libusb-win32) →
-   *Install Driver*.
+   *Install Driver*. For the web flasher choose **WinUSB** instead — WebUSB only works
+   with WinUSB.
 3. Optional, only to compile yourself: an AVR-GCC toolchain, e.g. Zak Kemble's builds
    (<https://blog.zakkemble.net/avr-gcc-builds/>).
 
@@ -132,6 +169,9 @@ Unplug the programmer and plug it back in.
 
 ## Flashing
 
+Or use the [web flasher](https://technikweber.github.io/ATTINY13A-fake-alarm-device/).
+
+
 ```bash
 avrdude -c usbasp -p t13 -U flash:w:Firmware/fake_alarm_5s_3ms_default_V2.hex:i
 ```
@@ -147,8 +187,8 @@ avrdude -c usbasp -p t13 -U lfuse:w:0x6A:m -U hfuse:w:0xFF:m
 
 | Fuse | Value | Meaning |
 |---|---|---|
-| `lfuse` | `0x6A` | internal RC 9.6 MHz, CKDIV8 on → 1.2 MHz clock |
-| `hfuse` | `0xFF` | BOD off, RSTDISBL off, SPIEN on |
+| `lfuse` | `0x6A` | internal RC 9.6 MHz, CKDIV8 on → 1.2 MHz clock, SPIEN on |
+| `hfuse` | `0xFF` | BOD off, RSTDISBL off, debugWIRE off |
 
 > [!IMPORTANT]
 > BOD must be off — otherwise the chip draws ~20 µA for it alone and the battery does not
