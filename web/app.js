@@ -72,7 +72,7 @@ function updateView() {
   const R = clamp(num("resistor", 3300), 100, 1e6);
   const iLed = Math.max(0, (3.0 - 1.9) / R) * 1000;       // mA
   const iActive = iLed + 0.25;                              // + CPU at 1.2 MHz
-  const avg = num("baseCurrent", 8) / 1000 + (iActive * c.flashes * onMs) / period; // mA
+  const avg = num("baseCurrent", 5) / 1000 + (iActive * c.flashes * onMs) / period; // mA
   const hours = 220 / avg;
   $("stats").innerHTML =
     `<span>Zyklus <b>${nf(period / 1000, 2)} s</b></span>` +

@@ -3,7 +3,7 @@
 <p>
   <a href="https://github.com/TechnikWeber/ATTINY13A-fake-alarm-device/actions/workflows/pages.yml"><img alt="build" src="https://img.shields.io/github/actions/workflow/status/TechnikWeber/ATTINY13A-fake-alarm-device/pages.yml?branch=main&label=build"></a>
   <img alt="MCU: ATtiny13A" src="https://img.shields.io/badge/MCU-ATtiny13A-blue">
-  <img alt="Power: CR2032" src="https://img.shields.io/badge/power-CR2032%20%C2%B7%20~8%20%C2%B5A-informational">
+  <img alt="Power: CR2032" src="https://img.shields.io/badge/power-CR2032%20%C2%B7%20~5%20%C2%B5A-informational">
   <img alt="PCB: KiCad" src="https://img.shields.io/badge/PCB-KiCad-informational">
   <img alt="Web flasher UI: Deutsch" src="https://img.shields.io/badge/web%20flasher-Deutsch-informational">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green"></a>
@@ -43,7 +43,7 @@ are switched off; the CPU runs on the default fuses (9.6 MHz / 8 = 1.2 MHz).
 | Bypass capacitor | 100 nF across VCC |
 | LED | any low-current LED |
 | LED series resistor | 3.3 kΩ on the board — usually too dim, see [below](#choosing-the-series-resistor) |
-| Reset pull-up | 1 MΩ to VCC (instead of 100 kΩ — saves ~25 µA!) |
+| Reset pull-up | 100 kΩ to VCC (draws no current in operation, see [Power budget](#power-budget)) |
 
 The KiCad project (schematic, PCB and production files) is in
 [`ATTINY13A_AlarmDevice/`](ATTINY13A_AlarmDevice).
@@ -76,7 +76,7 @@ Set the flash length in the [web flasher](https://technikweber.github.io/ATTINY1
                   CR2032 (3V)
                      |
                     +++
-                    | | 1 MΩ
+                    | | 100 kΩ
                     +++
                      |
         +------------+------------+
@@ -243,16 +243,19 @@ watchdog offers steps from 16 ms to 8 s.
 |---|---|
 | Power-down + WDT (sleep) | ~5 µA |
 | LED flash (3 ms every 5 s) | ~0.2 µA average |
-| 1 MΩ reset pull-up | ~3 µA |
-| **Total (average)** | **~8 µA** |
+| **Total (average)** | **~5 µA** |
+
+The reset pull-up does not appear here: both of its ends sit at VCC, so no current
+flows through it unless RESET is pulled low (during programming). Its value does not
+affect battery life; 100 kΩ keeps RESET less sensitive to noise than a higher value.
 
 With a CR2032 of ~220 mAh usable capacity:
 
 ```
-220 mAh / 0.008 mA ≈ 27,500 h ≈ 3.1 years (theoretical)
+220 mAh / 0.005 mA ≈ 44,000 h ≈ 5 years (theoretical)
 ```
 
-In practice (battery self-discharge, temperature swings): **realistically 1.5–2 years**.
+In practice (battery self-discharge, temperature swings): **realistically about 2–3 years**. Measure the sleep current with a multimeter to check your build.
 
 ## Troubleshooting
 
