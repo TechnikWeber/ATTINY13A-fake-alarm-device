@@ -20,6 +20,9 @@ An extremely low-power gadget: an ATtiny13A flashes an LED briefly at regular in
 to fake an armed alarm system. Running from a single CR2032 coin cell, it lasts **at
 least a year**.
 
+> **Status: tested.** The device has been running on real hardware for a while and works.
+> Pick the LED series resistor for your LED, see [Choosing the series resistor](#choosing-the-series-resistor).
+
 ![The round "Fake-Alarm-Device" PCB, rendered in KiCad](docs/board-3d.png)
 
 <img width="463" alt="Photo" src="https://github.com/user-attachments/assets/a8dc4973-b65d-4e64-a395-536100b6417c" /> <img width="487" alt="Photo" src="https://github.com/user-attachments/assets/adc7db20-9d0c-43a8-8bf3-e2cf133b17c3" />
@@ -39,11 +42,33 @@ are switched off; the CPU runs on the default fuses (9.6 MHz / 8 = 1.2 MHz).
 | Power | CR2032 (3 V) |
 | Bypass capacitor | 100 nF across VCC |
 | LED | any low-current LED |
-| LED series resistor | 3.3 kΩ |
+| LED series resistor | 3.3 kΩ on the board — usually too dim, see [below](#choosing-the-series-resistor) |
 | Reset pull-up | 1 MΩ to VCC (instead of 100 kΩ — saves ~25 µA!) |
 
 The KiCad project (schematic, PCB and production files) is in
 [`ATTINY13A_AlarmDevice/`](ATTINY13A_AlarmDevice).
+
+### Choosing the series resistor
+
+The 3.3 kΩ in the BOM lets only about 0.3 mA through a red LED. With a 3 ms flash
+you barely see it, especially in daylight. Better: **a smaller resistor and a shorter
+flash.** What the eye sees as brightness is mostly the peak current; the battery only
+pays for current × time, so 1 ms at 3 mA costs about as much as 3 ms at 1 mA.
+
+| LED | Forward voltage | Series resistor | LED current at 3 V | Flash length |
+|---|---|---|---|---|
+| Red (e.g. the Würth 0805 on the board) | ~1.9–2.0 V | **330 Ω** (220–470 Ω) | ~3 mA | 1–2 ms |
+| Yellow / orange | ~2.0–2.1 V | 270 Ω (220–390 Ω) | ~3 mA | 1–2 ms |
+| Green (modern InGaN) | ~2.6–2.8 V | 68 Ω (47–100 Ω) | ~3 mA | 1–2 ms |
+| Blue / white | ~2.8–3.0 V | 47 Ω (22–68 Ω) | 2–4 mA, drops as the cell empties | 1–2 ms |
+| Low-current / high-efficiency red | ~1.8 V | 1 kΩ (680 Ω–1.5 kΩ) | ~1 mA | 2–3 ms |
+
+`R = (3.0 V − forward voltage) / current`. Average cost of a 3 mA × 1 ms flash every 5 s:
+0.6 µA — the battery life barely changes. Blue and white LEDs sit close to the cell
+voltage, so they get dimmer as the CR2032 runs down; red is the most reliable choice.
+Set the flash length in the [web flasher](https://technikweber.github.io/ATTINY13A-fake-alarm-device/)
+(and enter your resistor there for the battery-life estimate). Do not go much above
+~10 mA: the coin cell sags under heavy pulses.
 
 ### Circuit
 
@@ -238,7 +263,7 @@ In practice (battery self-discharge, temperature swings): **realistically 1.5–
 | `signature mismatch` | Wrong chip type, bad contact, or a defective chip |
 | LED does not flash after inserting the battery | Check the fuses — above all the CKDIV8 bit (lfuse bit 7 = 0) |
 | Battery lasts weeks instead of months | BOD enabled? Pull-up too low? Measure the sleep current with a multimeter |
-| Flash hard to see | Choose a longer flash (5 ms instead of 3 ms) |
+| Flash hard to see | Use a smaller series resistor (e.g. 330 Ω for red) and a shorter flash (1–2 ms), see [Choosing the series resistor](#choosing-the-series-resistor) |
 
 ## License
 
